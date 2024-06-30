@@ -14,6 +14,18 @@ import BasicLayout from "@/layouts/BasicLayout.vue";
 import { useRouter } from "vue-router";
 import { useStore } from "vuex";
 import ASSESS_ENUM from "@/access/accessEnum";
+import { onMounted } from "vue";
+
+/**
+ * 全局初始化函数，有全局单词调用的代码，都可以写这里
+ */
+const doInit = () => {
+  console.log("hello 欢迎来到我的项目");
+};
+
+onMounted(() => {
+  doInit();
+});
 
 const router = useRouter();
 const store = useStore();

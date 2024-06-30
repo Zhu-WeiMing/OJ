@@ -48,7 +48,8 @@ const store = useStore();
  *       </a-menu>
  *       渲染
  */
-
+//修改GlobalHeader 动态菜单组件，根据权限来过滤菜单
+//注意，这里使用计算属性，是为了当登录用户信息发生变更时，触发菜单栏的重新渲染，展示新增权限的菜单项
 const visibleRoutes = computed(() => {
   return routes.filter((item) => {
     //根据hideInMenu的参数隐藏菜单（无权限页面不显示在菜单上）
