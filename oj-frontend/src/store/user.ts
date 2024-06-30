@@ -1,28 +1,21 @@
 // initial state
 import { StoreOptions } from "vuex";
-
-// state
-
-// getters
-const getters = {};
-
-// actions
-
-// mutations
+import ASSESS_ENUM from "@/access/accessEnum";
 
 export default {
   namespaced: true,
-  state: {
+
+  state: () => ({
     loginUser: {
       userName: "未登录",
-      role: "notLogin",
+      userRole: ASSESS_ENUM.NOT_LOGIN,
     },
-  },
-  getters,
+  }),
+
   actions: {
     getLoginUser({ commit, state }, payload) {
       //TODO 改成远程登录
-      commit("updateUser", { userName: "已登录" });
+      commit("updateUser", payload);
     },
   },
   mutations: {

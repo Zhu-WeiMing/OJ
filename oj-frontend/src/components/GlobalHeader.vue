@@ -1,5 +1,5 @@
 <template>
-  <a-row id="globalHeader" style="margin-bottom: 16px" align="center">
+  <a-row id="globalHeader" align="center" :wrap="false">
     <a-col flex="auto">
       <a-menu
         mode="horizontal"
@@ -16,7 +16,7 @@
             <img class="logo" src="../assets/logo.png" />
           </div>
         </a-menu-item>
-        <a-menu-item v-for="item in routes" :key="item.path">
+        <a-menu-item v-for="item in visibleRoutes" :key="item.path">
           {{ item.name }}
         </a-menu-item>
       </a-menu>
@@ -30,11 +30,41 @@
 <script setup lang="ts">
 import { routes } from "@/router/router";
 import { useRouter } from "vue-router";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useStore } from "vuex";
+import checkAccess from "@/access/checkAccess";
+import ASSESS_ENUM from "@/access/accessEnum";
 
-const route = useRouter();
 const router = useRouter();
+const store = useStore();
+
+/**
+ * 菜单显隐：
+ * 在router文件中给路由新增一个标志位，用于判断路由是否显隐
+ * visibleRoutes判断meta的hideInMenu 放入visibleRoutes中
+ * 最后在<a-menu-item v-for="item in visibleRoutes" :key="item.path">
+ *           {{ item.name }}
+ *         </a-menu-item>
+ *       </a-menu>
+ *       渲染
+ */
+
+const visibleRoutes = computed(() => {
+  return routes.filter((item) => {
+    //根据hideInMenu的参数隐藏菜单（无权限页面不显示在菜单上）
+    if (item.meta?.hideInMenu) {
+      return false;
+    }
+    //根据权限过滤菜单
+    if (
+      !checkAccess(store.state.user.loginUser, item?.meta?.access as string)
+    ) {
+      return false;
+    }
+    return true;
+  });
+});
+
 // 默认主页
 const selectedKeys = ref(["/"]);
 /**
@@ -56,8 +86,8 @@ setTimeout(() => {
    * type----模块名字/方法名
    */
   store.dispatch("user/getLoginUser", {
-    // userName: "zhuweiming",
-    role: "admin",
+    userName: "zhuweiming",
+    userRole: ASSESS_ENUM.ADMIN,
   });
 }, 3000); //设置3s后执行
 
@@ -65,12 +95,11 @@ const doMenuClick = (key: string) => {
   router.push({ path: key });
 };
 
-const store = useStore();
 /**
  * store.state.user.loginUser
  * 获取modules的user中的state的loginUser数据
  */
-console.log(store.state.user.loginUser);
+// console.log(store.state.user.loginUser);
 </script>
 
 <style scoped>
