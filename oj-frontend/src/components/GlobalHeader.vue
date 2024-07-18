@@ -81,16 +81,16 @@ router.afterEach((to, from, next) => {
   selectedKeys.value = [to.path];
 });
 
-setTimeout(() => {
-  /**
-   * dispatch方法
-   * type----模块名字/方法名
-   */
-  store.dispatch("user/getLoginUser", {
-    userName: "zhuweiming",
-    userRole: ASSESS_ENUM.ADMIN,
-  });
-}, 3000); //设置3s后执行
+// setTimeout(() => {
+//   /**
+//    * dispatch方法
+//    * type----模块名字/方法名
+//    */
+//   store.dispatch("user/getLoginUser", {
+//     userName: "zhuweiming",
+//     userRole: ASSESS_ENUM.ADMIN,
+//   });
+// }, 3000); //设置3s后执行
 
 const doMenuClick = (key: string) => {
   router.push({ path: key });
