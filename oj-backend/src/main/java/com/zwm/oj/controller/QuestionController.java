@@ -1,0 +1,246 @@
+package com.zwm.oj.controller;
+
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.google.gson.Gson;
+import com.zwm.oj.annotation.AuthCheck;
+import com.zwm.oj.common.BaseResponse;
+import com.zwm.oj.common.DeleteRequest;
+import com.zwm.oj.common.ErrorCode;
+import com.zwm.oj.common.ResultUtils;
+import com.zwm.oj.constant.UserConstant;
+import com.zwm.oj.exception.BusinessException;
+import com.zwm.oj.exception.ThrowUtils;
+import com.zwm.oj.model.dto.question.QuestionAddRequest;
+import com.zwm.oj.model.dto.question.QuestionEditRequest;
+import com.zwm.oj.model.dto.question.QuestionQueryRequest;
+import com.zwm.oj.model.dto.question.QuestionUpdateRequest;
+import com.zwm.oj.model.entity.Question;
+import com.zwm.oj.model.entity.User;
+import com.zwm.oj.model.vo.QuestionVO;
+import com.zwm.oj.service.QuestionService;
+import com.zwm.oj.service.UserService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
+import org.springframework.web.bind.annotation.*;
+
+import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
+import java.util.List;
+
+/**
+ * 题目接口
+ *
+ *  
+ *  
+ */
+@RestController
+@RequestMapping("/question")
+@Slf4j
+public class QuestionController {
+
+    @Resource
+    private QuestionService postService;
+
+    @Resource
+    private UserService userService;
+
+    private final static Gson GSON = new Gson();
+
+    // region 增删改查
+
+    /**
+     * 创建
+     *
+     * @param postAddRequest
+     * @param request
+     * @return
+     */
+    @PostMapping("/add")
+    public BaseResponse<Long> addQuestion(@RequestBody QuestionAddRequest postAddRequest, HttpServletRequest request) {
+        if (postAddRequest == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        Question question = new Question();
+        BeanUtils.copyProperties(postAddRequest, question);
+        List<String> tags = postAddRequest.getTags();
+        if (tags != null) {
+            question.setTags(GSON.toJson(tags));
+        }
+        postService.validQuestion(question, true);
+        User loginUser = userService.getLoginUser(request);
+        question.setUserId(loginUser.getId());
+        question.setFavourNum(0);
+        question.setThumbNum(0);
+        boolean result = postService.save(question);
+        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+        long newQuestionId = question.getId();
+        return ResultUtils.success(newQuestionId);
+    }
+
+    /**
+     * 删除
+     *
+     * @param deleteRequest
+     * @param request
+     * @return
+     */
+    @PostMapping("/delete")
+    public BaseResponse<Boolean> deleteQuestion(@RequestBody DeleteRequest deleteRequest, HttpServletRequest request) {
+        if (deleteRequest == null || deleteRequest.getId() <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        User user = userService.getLoginUser(request);
+        long id = deleteRequest.getId();
+        // 判断是否存在
+        Question oldQuestion = postService.getById(id);
+        ThrowUtils.throwIf(oldQuestion == null, ErrorCode.NOT_FOUND_ERROR);
+        // 仅本人或管理员可删除
+        if (!oldQuestion.getUserId().equals(user.getId()) && !userService.isAdmin(request)) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
+        }
+        boolean b = postService.removeById(id);
+        return ResultUtils.success(b);
+    }
+
+    /**
+     * 更新（仅管理员）
+     *
+     * @param postUpdateRequest
+     * @return
+     */
+    @PostMapping("/update")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<Boolean> updateQuestion(@RequestBody QuestionUpdateRequest postUpdateRequest) {
+        if (postUpdateRequest == null || postUpdateRequest.getId() <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        Question question = new Question();
+        BeanUtils.copyProperties(postUpdateRequest, question);
+        List<String> tags = postUpdateRequest.getTags();
+        if (tags != null) {
+            question.setTags(GSON.toJson(tags));
+        }
+        // 参数校验
+        postService.validQuestion(question, false);
+        long id = postUpdateRequest.getId();
+        // 判断是否存在
+        Question oldQuestion = postService.getById(id);
+        ThrowUtils.throwIf(oldQuestion == null, ErrorCode.NOT_FOUND_ERROR);
+        boolean result = postService.updateById(question);
+        return ResultUtils.success(result);
+    }
+
+    /**
+     * 根据 id 获取
+     *
+     * @param id
+     * @return
+     */
+    @GetMapping("/get/vo")
+    public BaseResponse<QuestionVO> getQuestionVOById(long id, HttpServletRequest request) {
+        if (id <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        Question question = postService.getById(id);
+        if (question == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR);
+        }
+        return ResultUtils.success(postService.getQuestionVO(question, request));
+    }
+
+    /**
+     * 分页获取列表（封装类）
+     *
+     * @param postQueryRequest
+     * @param request
+     * @return
+     */
+    @PostMapping("/list/page/vo")
+    public BaseResponse<Page<QuestionVO>> listQuestionVOByPage(@RequestBody QuestionQueryRequest postQueryRequest,
+            HttpServletRequest request) {
+        long current = postQueryRequest.getCurrent();
+        long size = postQueryRequest.getPageSize();
+        // 限制爬虫
+        ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
+        Page<Question> postPage = postService.page(new Page<>(current, size),
+                postService.getQueryWrapper(postQueryRequest));
+        return ResultUtils.success(postService.getQuestionVOPage(postPage, request));
+    }
+
+    /**
+     * 分页获取当前用户创建的资源列表
+     *
+     * @param postQueryRequest
+     * @param request
+     * @return
+     */
+    @PostMapping("/my/list/page/vo")
+    public BaseResponse<Page<QuestionVO>> listMyQuestionVOByPage(@RequestBody QuestionQueryRequest postQueryRequest,
+            HttpServletRequest request) {
+        if (postQueryRequest == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        User loginUser = userService.getLoginUser(request);
+        postQueryRequest.setUserId(loginUser.getId());
+        long current = postQueryRequest.getCurrent();
+        long size = postQueryRequest.getPageSize();
+        // 限制爬虫
+        ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
+        Page<Question> postPage = postService.page(new Page<>(current, size),
+                postService.getQueryWrapper(postQueryRequest));
+        return ResultUtils.success(postService.getQuestionVOPage(postPage, request));
+    }
+
+    // endregion
+
+    /**
+     * 分页搜索（从 ES 查询，封装类）
+     *
+     * @param postQueryRequest
+     * @param request
+     * @return
+     */
+    @PostMapping("/search/page/vo")
+    public BaseResponse<Page<QuestionVO>> searchQuestionVOByPage(@RequestBody QuestionQueryRequest postQueryRequest,
+            HttpServletRequest request) {
+        long size = postQueryRequest.getPageSize();
+        // 限制爬虫
+        ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
+        Page<Question> postPage = postService.searchFromEs(postQueryRequest);
+        return ResultUtils.success(postService.getQuestionVOPage(postPage, request));
+    }
+
+    /**
+     * 编辑（用户）
+     *
+     * @param postEditRequest
+     * @param request
+     * @return
+     */
+    @PostMapping("/edit")
+    public BaseResponse<Boolean> editQuestion(@RequestBody QuestionEditRequest postEditRequest, HttpServletRequest request) {
+        if (postEditRequest == null || postEditRequest.getId() <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        Question question = new Question();
+        BeanUtils.copyProperties(postEditRequest, question);
+        List<String> tags = postEditRequest.getTags();
+        if (tags != null) {
+            question.setTags(GSON.toJson(tags));
+        }
+        // 参数校验
+        postService.validQuestion(question, false);
+        User loginUser = userService.getLoginUser(request);
+        long id = postEditRequest.getId();
+        // 判断是否存在
+        Question oldQuestion = postService.getById(id);
+        ThrowUtils.throwIf(oldQuestion == null, ErrorCode.NOT_FOUND_ERROR);
+        // 仅本人或管理员可编辑
+        if (!oldQuestion.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
+        }
+        boolean result = postService.updateById(question);
+        return ResultUtils.success(result);
+    }
+
+}
