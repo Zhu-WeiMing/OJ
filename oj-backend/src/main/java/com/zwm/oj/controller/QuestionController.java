@@ -16,6 +16,7 @@ import com.zwm.oj.model.dto.question.QuestionQueryRequest;
 import com.zwm.oj.model.dto.question.QuestionUpdateRequest;
 import com.zwm.oj.model.entity.Question;
 import com.zwm.oj.model.entity.User;
+
 import com.zwm.oj.model.vo.QuestionVO;
 import com.zwm.oj.service.QuestionService;
 import com.zwm.oj.service.UserService;
@@ -29,9 +30,6 @@ import java.util.List;
 
 /**
  * 题目接口
- *
- *  
- *  
  */
 @RestController
 @RequestMapping("/question")
@@ -39,7 +37,7 @@ import java.util.List;
 public class QuestionController {
 
     @Resource
-    private QuestionService postService;
+    private QuestionService questionService;
 
     @Resource
     private UserService userService;
@@ -51,27 +49,27 @@ public class QuestionController {
     /**
      * 创建
      *
-     * @param postAddRequest
+     * @param questionAddRequest
      * @param request
      * @return
      */
     @PostMapping("/add")
-    public BaseResponse<Long> addQuestion(@RequestBody QuestionAddRequest postAddRequest, HttpServletRequest request) {
-        if (postAddRequest == null) {
+    public BaseResponse<Long> addQuestion(@RequestBody QuestionAddRequest questionAddRequest, HttpServletRequest request) {
+        if (questionAddRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         Question question = new Question();
-        BeanUtils.copyProperties(postAddRequest, question);
-        List<String> tags = postAddRequest.getTags();
+        BeanUtils.copyProperties(questionAddRequest, question);
+        List<String> tags = questionAddRequest.getTags();
         if (tags != null) {
             question.setTags(GSON.toJson(tags));
         }
-        postService.validQuestion(question, true);
+        questionService.validQuestion(question, true);
         User loginUser = userService.getLoginUser(request);
         question.setUserId(loginUser.getId());
         question.setFavourNum(0);
         question.setThumbNum(0);
-        boolean result = postService.save(question);
+        boolean result = questionService.save(question);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         long newQuestionId = question.getId();
         return ResultUtils.success(newQuestionId);
@@ -92,41 +90,41 @@ public class QuestionController {
         User user = userService.getLoginUser(request);
         long id = deleteRequest.getId();
         // 判断是否存在
-        Question oldQuestion = postService.getById(id);
+        Question oldQuestion = questionService.getById(id);
         ThrowUtils.throwIf(oldQuestion == null, ErrorCode.NOT_FOUND_ERROR);
         // 仅本人或管理员可删除
         if (!oldQuestion.getUserId().equals(user.getId()) && !userService.isAdmin(request)) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
         }
-        boolean b = postService.removeById(id);
+        boolean b = questionService.removeById(id);
         return ResultUtils.success(b);
     }
 
     /**
      * 更新（仅管理员）
      *
-     * @param postUpdateRequest
+     * @param questionUpdateRequest
      * @return
      */
     @PostMapping("/update")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Boolean> updateQuestion(@RequestBody QuestionUpdateRequest postUpdateRequest) {
-        if (postUpdateRequest == null || postUpdateRequest.getId() <= 0) {
+    public BaseResponse<Boolean> updateQuestion(@RequestBody QuestionUpdateRequest questionUpdateRequest) {
+        if (questionUpdateRequest == null || questionUpdateRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         Question question = new Question();
-        BeanUtils.copyProperties(postUpdateRequest, question);
-        List<String> tags = postUpdateRequest.getTags();
+        BeanUtils.copyProperties(questionUpdateRequest, question);
+        List<String> tags = questionUpdateRequest.getTags();
         if (tags != null) {
             question.setTags(GSON.toJson(tags));
         }
         // 参数校验
-        postService.validQuestion(question, false);
-        long id = postUpdateRequest.getId();
+        questionService.validQuestion(question, false);
+        long id = questionUpdateRequest.getId();
         // 判断是否存在
-        Question oldQuestion = postService.getById(id);
+        Question oldQuestion = questionService.getById(id);
         ThrowUtils.throwIf(oldQuestion == null, ErrorCode.NOT_FOUND_ERROR);
-        boolean result = postService.updateById(question);
+        boolean result = questionService.updateById(question);
         return ResultUtils.success(result);
     }
 
@@ -141,105 +139,87 @@ public class QuestionController {
         if (id <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        Question question = postService.getById(id);
+        Question question = questionService.getById(id);
         if (question == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND_ERROR);
         }
-        return ResultUtils.success(postService.getQuestionVO(question, request));
+        return ResultUtils.success(questionService.getQuestionVO(question, request));
     }
 
     /**
      * 分页获取列表（封装类）
      *
-     * @param postQueryRequest
+     * @param questionQueryRequest
      * @param request
      * @return
      */
     @PostMapping("/list/page/vo")
-    public BaseResponse<Page<QuestionVO>> listQuestionVOByPage(@RequestBody QuestionQueryRequest postQueryRequest,
-            HttpServletRequest request) {
-        long current = postQueryRequest.getCurrent();
-        long size = postQueryRequest.getPageSize();
+    public BaseResponse<Page<QuestionVO>> listQuestionVOByPage(@RequestBody QuestionQueryRequest questionQueryRequest,
+                                                               HttpServletRequest request) {
+        long current = questionQueryRequest.getCurrent();
+        long size = questionQueryRequest.getPageSize();
         // 限制爬虫
         ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
-        Page<Question> postPage = postService.page(new Page<>(current, size),
-                postService.getQueryWrapper(postQueryRequest));
-        return ResultUtils.success(postService.getQuestionVOPage(postPage, request));
+        Page<Question> questionPage = questionService.page(new Page<>(current, size),
+                questionService.getQueryWrapper(questionQueryRequest));
+        return ResultUtils.success(questionService.getQuestionVOPage(questionPage, request));
     }
 
     /**
      * 分页获取当前用户创建的资源列表
      *
-     * @param postQueryRequest
+     * @param questionQueryRequest
      * @param request
      * @return
      */
     @PostMapping("/my/list/page/vo")
-    public BaseResponse<Page<QuestionVO>> listMyQuestionVOByPage(@RequestBody QuestionQueryRequest postQueryRequest,
-            HttpServletRequest request) {
-        if (postQueryRequest == null) {
+    public BaseResponse<Page<QuestionVO>> listMyQuestionVOByPage(@RequestBody QuestionQueryRequest questionQueryRequest,
+                                                                 HttpServletRequest request) {
+        if (questionQueryRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         User loginUser = userService.getLoginUser(request);
-        postQueryRequest.setUserId(loginUser.getId());
-        long current = postQueryRequest.getCurrent();
-        long size = postQueryRequest.getPageSize();
+        questionQueryRequest.setUserId(loginUser.getId());
+        long current = questionQueryRequest.getCurrent();
+        long size = questionQueryRequest.getPageSize();
         // 限制爬虫
         ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
-        Page<Question> postPage = postService.page(new Page<>(current, size),
-                postService.getQueryWrapper(postQueryRequest));
-        return ResultUtils.success(postService.getQuestionVOPage(postPage, request));
+        Page<Question> questionPage = questionService.page(new Page<>(current, size),
+                questionService.getQueryWrapper(questionQueryRequest));
+        return ResultUtils.success(questionService.getQuestionVOPage(questionPage, request));
     }
 
-    // endregion
-
-    /**
-     * 分页搜索（从 ES 查询，封装类）
-     *
-     * @param postQueryRequest
-     * @param request
-     * @return
-     */
-    @PostMapping("/search/page/vo")
-    public BaseResponse<Page<QuestionVO>> searchQuestionVOByPage(@RequestBody QuestionQueryRequest postQueryRequest,
-            HttpServletRequest request) {
-        long size = postQueryRequest.getPageSize();
-        // 限制爬虫
-        ThrowUtils.throwIf(size > 20, ErrorCode.PARAMS_ERROR);
-        Page<Question> postPage = postService.searchFromEs(postQueryRequest);
-        return ResultUtils.success(postService.getQuestionVOPage(postPage, request));
-    }
 
     /**
      * 编辑（用户）
      *
-     * @param postEditRequest
+     * @param questionEditRequest
      * @param request
      * @return
      */
     @PostMapping("/edit")
-    public BaseResponse<Boolean> editQuestion(@RequestBody QuestionEditRequest postEditRequest, HttpServletRequest request) {
-        if (postEditRequest == null || postEditRequest.getId() <= 0) {
+    public BaseResponse<Boolean> editQuestion(@RequestBody QuestionEditRequest questionEditRequest, HttpServletRequest request) {
+        if (questionEditRequest == null || questionEditRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         Question question = new Question();
-        BeanUtils.copyProperties(postEditRequest, question);
-        List<String> tags = postEditRequest.getTags();
+        BeanUtils.copyProperties(questionEditRequest, question);
+        List<String> tags = questionEditRequest.getTags();
         if (tags != null) {
             question.setTags(GSON.toJson(tags));
         }
         // 参数校验
-        postService.validQuestion(question, false);
+        questionService.validQuestion(question, false);
         User loginUser = userService.getLoginUser(request);
-        long id = postEditRequest.getId();
+        long id = questionEditRequest.getId();
         // 判断是否存在
-        Question oldQuestion = postService.getById(id);
+        Question oldQuestion = questionService.getById(id);
         ThrowUtils.throwIf(oldQuestion == null, ErrorCode.NOT_FOUND_ERROR);
         // 仅本人或管理员可编辑
         if (!oldQuestion.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
         }
-        boolean result = postService.updateById(question);
+        boolean result = questionService.updateById(question);
         return ResultUtils.success(result);
     }
 

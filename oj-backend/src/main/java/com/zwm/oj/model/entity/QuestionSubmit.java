@@ -47,6 +47,10 @@ public class QuestionSubmit implements Serializable {
     private Long userId;
 
     /**
+     * 提交代码
+     */
+    private String code;
+    /**
      * 创建时间
      */
     private Date createTime;
@@ -55,6 +59,11 @@ public class QuestionSubmit implements Serializable {
      * 更新时间
      */
     private Date updateTime;
+
+    /**
+     * 是否删除
+     */
+    private Integer isDelete;
 
     @TableField(exist = false)
     private static final long serialVersionUID = 1L;
