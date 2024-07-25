@@ -1,12 +1,20 @@
 package com.zwm.oj.controller;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zwm.oj.common.BaseResponse;
 import com.zwm.oj.common.ErrorCode;
 import com.zwm.oj.common.ResultUtils;
 import com.zwm.oj.exception.BusinessException;
 
+import com.zwm.oj.exception.ThrowUtils;
+import com.zwm.oj.model.dto.question.QuestionQueryRequest;
 import com.zwm.oj.model.dto.questionsubmit.QuestionSubmitAddRequest;
+import com.zwm.oj.model.dto.questionsubmit.QuestionSubmitQueryRequest;
+import com.zwm.oj.model.entity.Question;
+import com.zwm.oj.model.entity.QuestionSubmit;
 import com.zwm.oj.model.entity.User;
+import com.zwm.oj.model.vo.QuestionSubmitVO;
+import com.zwm.oj.model.vo.QuestionVO;
 import com.zwm.oj.service.QuestionSubmitService;
 import com.zwm.oj.service.UserService;
 import lombok.extern.slf4j.Slf4j;
@@ -40,7 +48,7 @@ public class QuestionSubmitController {
      *
      * @param questionSubmitAddRequest
      * @param request
-     * @return resultNum 本次点赞变化数
+     * @return result id
      */
     @PostMapping("/")
     public BaseResponse<Long> doSubmitQuestion(@RequestBody QuestionSubmitAddRequest questionSubmitAddRequest,
@@ -53,6 +61,28 @@ public class QuestionSubmitController {
         long questionId = questionSubmitAddRequest.getQuestionId();
         Long result = questionSubmitService.doQuestionSubmit(questionSubmitAddRequest, loginUser);
         return ResultUtils.success(result);
+    }
+
+
+    /**
+     * 分页获取题目提交列表（除管理员外，普通用户只能非答案，提交代码等公开信息
+     *
+     * @param questionSubmitQueryRequest
+     * @param request
+     * @return
+     */
+    @PostMapping("/my/list/page")
+    public BaseResponse<Page<QuestionSubmitVO>> listQuestionSubmitByPage(@RequestBody QuestionSubmitQueryRequest questionSubmitQueryRequest,
+                                                                 HttpServletRequest request) {
+
+        long current = questionSubmitQueryRequest.getCurrent();
+        long size = questionSubmitQueryRequest.getPageSize();
+        //从数据库中查询原始的题目提交分页信息
+        Page<QuestionSubmit> questionSubmitPage = questionSubmitService.page(new Page<>(current, size),
+                questionSubmitService.getQueryWrapper(questionSubmitQueryRequest));
+        //返回脱敏信息
+        final User loginUser = userService.getLoginUser(request);
+        return ResultUtils.success(questionSubmitService.getQuestionSubmitVOPage(questionSubmitPage,loginUser));
     }
 
 }
