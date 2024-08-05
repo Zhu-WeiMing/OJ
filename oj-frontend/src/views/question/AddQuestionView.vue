@@ -2,16 +2,21 @@
   <div id="addQuestionView">创建题目</div>
   <a-form :model="form">
     <a-form-item field="answer" label="答案">
-      <MdEditor />
+      <MdEditor :value="form.answer" :handle-change="onAnswerChange" />
     </a-form-item>
     <a-form-item field="context" label="题目内容">
-      <MdEditor />
+      <MdEditor :value="form.content" :handle-change="onContextChange" />
     </a-form-item>
     <a-form-item field="title" label="标题">
       <a-input v-model="form.title" placeholder="请输入标题" />
     </a-form-item>
     <a-form-item field="tags" label="标签">
-      <a-input-tag v-model="form.tags" placeholder="请选择标签" allow-clear />
+      <a-input-tag
+        v-model="form.tags"
+        placeholder="请选择标签"
+        allow-clear
+        :value="form.tags"
+      />
     </a-form-item>
 
     <a-form-item label="判题配置" :content-flex="false" :merge-props="false">
@@ -94,9 +99,10 @@
           >添加测试用例
         </a-button>
       </div>
-      <a-form-item>
-        <a-button type="primary">提交</a-button>
-      </a-form-item>
+    </a-form-item>
+
+    <a-form-item>
+      <a-button type="primary" @click="doSubmit">提交</a-button>
     </a-form-item>
   </a-form>
 </template>
@@ -104,6 +110,8 @@
 <script setup lang="ts">
 import { reactive } from "vue";
 import MdEditor from "@/components/MdEditor.vue";
+import { QuestionControllerService } from "../../../generated";
+import message from "@arco-design/web-vue/es/message";
 
 const form = reactive({
   answer: "",
@@ -122,20 +130,40 @@ const form = reactive({
   tags: [],
   title: "",
 });
+
+const doSubmit = async () => {
+  console.log(form);
+  const res = await QuestionControllerService.addQuestionUsingPost(form);
+  if (res.code === 0) {
+    message.success("添加成功");
+  } else {
+    message.error("创建失败：" + res.message);
+  }
+};
 /**
  * 新增测试用例
  */
 const handleAdd = () => {
-  form.judgeCase.push({
-    input: "",
-    output: "",
-  });
+  if (form.judgeCase) {
+    form.judgeCase.push({
+      input: "",
+      output: "",
+    });
+  }
 };
 /**
  * 删除测试用例
  */
 const handleDelete = (index: number) => {
-  form.judgeCase.splice(index, 1);
+  if (form.judgeCase) {
+    form.judgeCase.splice(index, 1);
+  }
+};
+const onAnswerChange = (v: string) => {
+  form.answer = v;
+};
+const onContextChange = (v: string) => {
+  form.content = v;
 };
 </script>
 

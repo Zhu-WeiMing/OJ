@@ -1,5 +1,10 @@
 <template>
-  <Editor :value="value" :plugins="plugins" @change="handleChange" />
+  <Editor
+    :value="value"
+    :mode="mode"
+    :plugins="plugins"
+    @change="handleChange"
+  />
 </template>
 
 <script setup lang="ts">
@@ -11,6 +16,7 @@ import { defineProps, withDefaults } from "vue";
 // 父组件传入value
 interface Props {
   value: string;
+  mode?: string;
   handleChange: (value: string) => void;
 }
 
@@ -23,6 +29,7 @@ const plugins = [
 //如果父组件没传value 默认值
 const props = withDefaults(defineProps<Props>(), {
   value: () => "",
+  mode: () => "split",
   handleChange: (v: string) => {
     console.log(v);
   },
